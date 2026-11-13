@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Speed King — Prateek Singh</title>
+<style>
+  *{box-sizing:border-box} body{margin:0;background:#101827;color:#fff;font-family:Arial,sans-serif;display:flex;justify-content:center;min-height:100vh}
+  .wrap{width:min(100%,480px);padding:14px;text-align:center}
+  h1{margin:4px 0 2px;font-size:34px;letter-spacing:2px;color:#ffd43b;text-shadow:2px 3px 0 #a83200}
+  .by{margin:0 0 10px;color:#b8c7df;font-size:14px}
+  .hud{display:flex;justify-content:space-between;gap:8px;margin:8px 0;font-weight:bold}
+  .pill{background:#202e45;border:1px solid #3b5275;border-radius:10px;padding:8px 12px;flex:1}
+  canvas{width:100%;height:auto;display:block;background:#263449;border:3px solid #ffd43b;border-radius:14px;touch-action:none}
+  .controls{display:flex;justify-content:center;gap:22px;margin:12px 0}
+  button{border:0;border-radius:12px;padding:13px 24px;font-size:18px;font-weight:bold;background:#ffd43b;color:#172033;box-shadow:0 4px 0 #a66b00;touch-action:manipulation}
+  button:active{transform:translateY(3px);box-shadow:0 1px 0 #a66b00}
+  #start{background:#24d18b;color:#062c20}
+  .hint{font-size:12px;color:#c1cee0;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏁 SPEED KING</h1><p class="by">by Prateek Singh</p>
+  <div class="hud"><div class="pill">Score: <span id="score">0</span></div><div class="pill">Best: <span id="best">0</span></div></div>
+  <canvas id="game" width="420" height="640" aria-label="Speed King car racing game"></canvas>
+  <div class="controls"><button id="left">⬅ LEFT</button><button id="right">RIGHT ➡</button></div>
+  <button id="start">START GAME</button>
+  <p class="hint">Use the left/right buttons or keyboard arrow keys. Avoid the traffic cars!</p>
+</div>
+<script>
+(() => {
+  const canvas=document.getElementById('game'), ctx=canvas.getContext('2d');
+  const scoreEl=document.getElementById('score'), bestEl=document.getElementById('best');
+  const W=canvas.width,H=canvas.height, roadL=65,roadR=355, lanes=[112,209,306];
+  let player={x:209,y:520,w:42,h:76}, enemies=[], score=0,best=Number(localStorage.getItem('speedKingBest')||0);
+  let running=false,gameOver=false,frame=0,speed=5,move=0;
+  bestEl.textContent=best;
+  function rounded(x,y,w,h,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill()}
+  function drawCar(x,y,color,playerCar=false){
+    // Wheels and body
+    rounded(x-5,y+12,9,20,3,'#090d14'); rounded(x+38,y+12,9,20,3,'#090d14');
+    rounded(x-5,y+48,9,20,3,'#090d14'); rounded(x+38,y+48,9,20,3,'#090d14');
+    rounded(x,y,42,76,10,color);
+    rounded(x+7,y+12,28,22,6,'#9de7ff');
+    rounded(x+7,y+43,28,17,5,playerCar?'#7a1010':'#333d4b');
+    ctx.fillStyle='#fff2b0';ctx.fillRect(x+4,y+4,8,5);ctx.fillRect(x+30,y+4,8,5);
+    ctx.fillStyle='#ff3434';ctx.fillRect(x+4,y+66,8,5);ctx.fillRect(x+30,y+66,8,5);
+    if(playerCar){ctx.fillStyle='#fff';ctx.fillRect(x+19,y+28,4,12)}
+  }
+  function drawRoad(){
+    ctx.fillStyle='#28633d';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#424955';ctx.fillRect(roadL,0,roadR-roadL,H);
+    ctx.fillStyle='#f4f4f4';ctx.fillRect(roadL,0,5,H);ctx.fillRect(roadR-5,0,5,H);
+    ctx.strokeStyle='#f8e9a2';ctx.lineWidth=5;ctx.setLineDash([34,28]);ctx.lineDashOffset=-frame*speed; 
+    ctx.beginPath();ctx.moveTo(162,0);ctx.lineTo(162,H);ctx.moveTo(258,0);ctx.lineTo(258,H);ctx.stroke();ctx.setLineDash([]);
+    for(let y=(frame*speed*1.5)%100-100;y<H;y+=100){ctx.fillStyle='#1d4e32';ctx.fillRect(18,y,25,42);ctx.fillRect(375,y+35,25,42)}
+  }
+  function draw(){
+    drawRoad();
+    enemies.forEach(e=>drawCar(e.x,e.y,e.color));
+    drawCar(player.x,player.y,'#ed2638',true);
+    if(!running){
+      ctx.fillStyle='rgba(4,10,20,.72)';ctx.fillRect(0,0,W,H);
+      ctx.textAlign='center';ctx.fillStyle='#ffd43b';ctx.font='bold 34px Arial';ctx.fillText(gameOver?'GAME OVER':'SPEED KING',W/2,260);
+      ctx.fillStyle='#fff';ctx.font='bold 18px Arial';ctx.fillText(gameOver?'Tap START to race again':'Press START to begin',W/2,300);
+      if(gameOver){ctx.font='16px Arial';ctx.fillText('Your score: '+score,W/2,334)}
+    }
+  }
+  function reset(){player.x=189;enemies=[];score=0;frame=0;speed=5;scoreEl.textContent='0';gameOver=false;running=true;}
+  function spawn(){const lane=lanes[Math.floor(Math.random()*lanes.length)];enemies.push({x:lane-21,y:-90,w:42,h:76,color:['#2479ed','#ff9f1c','#a855f7','#e8e8e8'][Math.floor(Math.random()*4)]})}
+  function endGame(){running=false;gameOver=true;if(score>best){best=score;localStorage.setItem('speedKingBest',best);bestEl.textContent=best}draw()}
+  function loop(){if(!running)return;frame++;speed=5+Math.min(score/150,5);if(frame%Math.max(28,65-Math.floor(speed*3))===0)spawn();
+    player.x+=move*6;player.x=Math.max(roadL+8,Math.min(roadR-50,player.x));
+    enemies.forEach(e=>e.y+=speed);enemies=enemies.filter(e=>e.y<H+100);
+    for(const e of enemies){if(player.x<e.x+e.w-7&&player.x+player.w-7>e.x&&player.y<e.y+e.h-8&&player.y+player.h-8>e.y){endGame();return}}
+    if(frame%6===0){score++;scoreEl.textContent=score}
+    draw();requestAnimationFrame(loop)
+  }
+  function start(){reset();draw();requestAnimationFrame(loop)}
+  document.getElementById('start').addEventListener('click',start);
+  const bind=(id,dir)=>{const b=document.getElementById(id);b.addEventListener('pointerdown',e=>{e.preventDefault();move=dir});['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>{if(move===dir)move=0}))};
+  bind('left',-1);bind('right',1);
+  window.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='a')move=-1;if(e.key==='ArrowRight'||e.key==='d')move=1});
+  window.addEventListener('keyup',e=>{if(['ArrowLeft','ArrowRight','a','d'].includes(e.key))move=0});
+  draw();
+})();
+</script>
+</body>
+</html>
